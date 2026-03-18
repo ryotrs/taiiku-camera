@@ -411,9 +411,9 @@
         <button class="back-btn" onclick="goHome()">← もどる</button>
         <span class="toolbar-title">⏱️ <ruby>遅<rt>ち</rt></ruby><ruby>延<rt>えん</rt></ruby><ruby>再<rt>さい</rt></ruby><ruby>生<rt>せい</rt></ruby></span>
     </div>
-    <div class="video-area">
-        <video id="delay-src" autoplay playsinline muted style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;"></video>
-        <canvas id="delay-canvas"></canvas>
+    <div class="video-area" style="position:relative;">
+        <video id="delay-src" autoplay playsinline muted style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;z-index:1;"></video>
+        <canvas id="delay-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;z-index:2;"></canvas>
         <div class="status-label" id="delay-status">カメラ<ruby>起<rt>き</rt></ruby><ruby>動<rt>どう</rt></ruby><ruby>中<rt>ちゅう</rt></ruby>…</div>
     </div>
     <div class="controls">
@@ -617,10 +617,11 @@ function goHome() {
 /* =================================================================
    1. 遅延再生
    ================================================================= */
-let dFrames = [], dRunning = false, dTimer = null;
-const D_FPS = 8;
-const D_W = 360, D_H = 203;          // 16:9 バッファサイズ
+let dFrames = [], dRunning = false, dRafId = null;
+const D_FPS = 10;
+const D_W = 480, D_H = 270;
 let dCapCvs, dCapCtx, dDispCvs, dDispCtx;
+let dLastCapture = 0;
 
 function initDelay() {
     show('delay-screen');
@@ -631,7 +632,7 @@ function initDelay() {
     dDispCtx = dDispCvs.getContext('2d');
     dCapCvs  = document.createElement('canvas');
     dCapCvs.width = D_W; dCapCvs.height = D_H;
-    dCapCtx  = dCapCvs.getContext('2d');
+    dCapCtx  = dCapCvs.getContext('2d', { willReadFrequently: true });
 
     const slider = document.getElementById('delay-slider');
     const label  = document.getElementById('delay-val');
@@ -640,63 +641,67 @@ function initDelay() {
     startCamera().then(s => {
         const v = document.getElementById('delay-src');
         v.srcObject = s;
+        v.setAttribute('autoplay', '');
+        v.setAttribute('playsinline', '');
+        v.setAttribute('muted', '');
+        v.muted = true;
+
+        function beginDelay() {
+            if (dRunning) return;
+            const vw = v.videoWidth  || 1280;
+            const vh = v.videoHeight || 720;
+            dDispCvs.width  = vw;
+            dDispCvs.height = vh;
+            status.textContent = '';
+            dFrames = [];
+            dRunning = true;
+            dLastCapture = 0;
+            delayLoop(v);
+        }
+
+        v.onplaying = () => { beginDelay(); };
         v.onloadedmetadata = () => {
-            v.play().then(() => {
-                dDispCvs.width  = v.videoWidth  || 1280;
-                dDispCvs.height = v.videoHeight || 720;
-                status.textContent = '';
-                dFrames = [];
-                dRunning = true;
-                delayTick(v);
-            }).catch(() => {
-                status.textContent = 'カメラの再生に失敗しました';
-            });
+            v.play().catch(() => {});
         };
-        // Fallback: if onloadedmetadata doesn't fire within 3s
+        // Force play
+        v.play().catch(() => {});
+
+        // Fallback
         setTimeout(() => {
-            if (!dRunning && v.readyState >= 2) {
-                v.play().then(() => {
-                    dDispCvs.width  = v.videoWidth  || 1280;
-                    dDispCvs.height = v.videoHeight || 720;
-                    status.textContent = '';
-                    dFrames = [];
-                    dRunning = true;
-                    delayTick(v);
-                }).catch(() => {});
-            } else if (!dRunning) {
+            if (!dRunning) {
                 v.play().catch(() => {});
-                v.addEventListener('playing', function onPlay() {
-                    v.removeEventListener('playing', onPlay);
-                    if (dRunning) return;
-                    dDispCvs.width  = v.videoWidth  || 1280;
-                    dDispCvs.height = v.videoHeight || 720;
-                    status.textContent = '';
-                    dFrames = [];
-                    dRunning = true;
-                    delayTick(v);
-                });
+                setTimeout(() => { beginDelay(); }, 500);
             }
-        }, 3000);
+        }, 2000);
     }).catch(e => { status.textContent = 'カメラエラー: ' + e.message; });
 }
 
-function delayTick(video) {
+function delayLoop(video) {
     if (!dRunning) return;
+    dRafId = requestAnimationFrame(() => delayLoop(video));
 
-    dCapCtx.drawImage(video, 0, 0, D_W, D_H);
-    const img = dCapCtx.getImageData(0, 0, D_W, D_H);
-    dFrames.push({ d: img, t: performance.now() });
+    const now = performance.now();
+    const interval = 1000 / D_FPS;
+    if (now - dLastCapture < interval) return;
+    dLastCapture = now;
+
+    // Capture frame to buffer
+    if (video.readyState >= 2) {
+        dCapCtx.drawImage(video, 0, 0, D_W, D_H);
+        const img = dCapCtx.getImageData(0, 0, D_W, D_H);
+        dFrames.push({ d: img, t: now });
+    }
 
     const delaySec = parseInt(document.getElementById('delay-slider').value);
     const delayMs  = delaySec * 1000;
 
-    // 古いフレームを捨てる (遅延 + 2 秒バッファ)
-    const keepMs = delayMs + 2000;
-    const now = performance.now();
+    // Trim old frames
+    const keepMs = delayMs + 3000;
     while (dFrames.length > 1 && now - dFrames[0].t > keepMs) dFrames.shift();
 
     if (delaySec === 0) {
-        dDispCtx.drawImage(video, 0, 0, dDispCvs.width, dDispCvs.height);
+        // No delay: canvas is transparent, video shows through underneath
+        dDispCtx.clearRect(0, 0, dDispCvs.width, dDispCvs.height);
     } else {
         const target = now - delayMs;
         let f = null;
@@ -707,21 +712,15 @@ function delayTick(video) {
             dCapCtx.putImageData(f.d, 0, 0);
             dDispCtx.drawImage(dCapCvs, 0, 0, dDispCvs.width, dDispCvs.height);
         } else {
-            dDispCtx.fillStyle = '#1e1e2e';
-            dDispCtx.fillRect(0, 0, dDispCvs.width, dDispCvs.height);
-            dDispCtx.fillStyle = '#fff';
-            dDispCtx.font = 'bold 22px "M PLUS Rounded 1c", sans-serif';
-            dDispCtx.textAlign = 'center';
-            dDispCtx.fillText('バッファちゅう… すこしおまちください 🎥',
-                              dDispCvs.width / 2, dDispCvs.height / 2);
+            // Show live video through transparent canvas while buffering
+            dDispCtx.clearRect(0, 0, dDispCvs.width, dDispCvs.height);
         }
     }
-    dTimer = setTimeout(() => delayTick(video), 1000 / D_FPS);
 }
 
 function cleanupDelay() {
     dRunning = false;
-    if (dTimer) { clearTimeout(dTimer); dTimer = null; }
+    if (dRafId) { cancelAnimationFrame(dRafId); dRafId = null; }
     dFrames = [];
 }
 
