@@ -412,7 +412,7 @@
         <span class="toolbar-title">⏱️ <ruby>遅<rt>ち</rt></ruby><ruby>延<rt>えん</rt></ruby><ruby>再<rt>さい</rt></ruby><ruby>生<rt>せい</rt></ruby></span>
     </div>
     <div class="video-area">
-        <video id="delay-src" autoplay playsinline muted style="display:none"></video>
+        <video id="delay-src" autoplay playsinline muted style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;"></video>
         <canvas id="delay-canvas"></canvas>
         <div class="status-label" id="delay-status">カメラ<ruby>起<rt>き</rt></ruby><ruby>動<rt>どう</rt></ruby><ruby>中<rt>ちゅう</rt></ruby>…</div>
     </div>
@@ -641,13 +641,42 @@ function initDelay() {
         const v = document.getElementById('delay-src');
         v.srcObject = s;
         v.onloadedmetadata = () => {
-            dDispCvs.width  = v.videoWidth;
-            dDispCvs.height = v.videoHeight;
-            status.textContent = '';
-            dFrames = [];
-            dRunning = true;
-            delayTick(v);
+            v.play().then(() => {
+                dDispCvs.width  = v.videoWidth  || 1280;
+                dDispCvs.height = v.videoHeight || 720;
+                status.textContent = '';
+                dFrames = [];
+                dRunning = true;
+                delayTick(v);
+            }).catch(() => {
+                status.textContent = 'カメラの再生に失敗しました';
+            });
         };
+        // Fallback: if onloadedmetadata doesn't fire within 3s
+        setTimeout(() => {
+            if (!dRunning && v.readyState >= 2) {
+                v.play().then(() => {
+                    dDispCvs.width  = v.videoWidth  || 1280;
+                    dDispCvs.height = v.videoHeight || 720;
+                    status.textContent = '';
+                    dFrames = [];
+                    dRunning = true;
+                    delayTick(v);
+                }).catch(() => {});
+            } else if (!dRunning) {
+                v.play().catch(() => {});
+                v.addEventListener('playing', function onPlay() {
+                    v.removeEventListener('playing', onPlay);
+                    if (dRunning) return;
+                    dDispCvs.width  = v.videoWidth  || 1280;
+                    dDispCvs.height = v.videoHeight || 720;
+                    status.textContent = '';
+                    dFrames = [];
+                    dRunning = true;
+                    delayTick(v);
+                });
+            }
+        }, 3000);
     }).catch(e => { status.textContent = 'カメラエラー: ' + e.message; });
 }
 
