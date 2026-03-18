@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>たいいくカメラ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'M PLUS Rounded 1c', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+            background: #ffffff;
+            color: #333;
+            height: 100dvh;
+            overflow: hidden;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        ruby { ruby-align: center; }
+        rt { font-size: 0.5em; color: #999; font-weight: normal; }
+
+        /* ============ Particle Background ============ */
+        #particle-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============ Screens ============ */
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100dvh;
+            position: relative;
+            z-index: 1;
+        }
+        .screen.active { display: flex; }
+
+        /* ============ HOME ============ */
+        #home {
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            padding: 16px 20px;
+            background: linear-gradient(170deg, #ffffff 0%, #f4f7ff 40%, #fff0f6 70%, #eefff5 100%);
+        }
+
+        /* ---------- Giant Title ---------- */
+        .home-title-wrap {
+            text-align: center;
+            margin-bottom: 2px;
+            animation: titleEntrance 0.8s cubic-bezier(.34,1.56,.64,1) both;
+        }
+        @keyframes titleEntrance {
+            0%   { transform: scale(0.4) rotate(-3deg); opacity: 0; }
+            60%  { transform: scale(1.08) rotate(1deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .title-icon {
+            display: block;
+            font-size: 3.2em;
+            line-height: 1;
+            margin-bottom: -4px;
+            animation: iconBounce 1.5s ease-in-out infinite;
+        }
+        @keyframes iconBounce {
+            0%,100% { transform: translateY(0) rotate(0deg); }
+            30%     { transform: translateY(-12px) rotate(-5deg); }
+            60%     { transform: translateY(-6px) rotate(3deg); }
+        }
+
+        .home-title {
+            font-size: min(18vw, 100px);
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: 0.06em;
+            background: linear-gradient(135deg, #6366f1 0%, #ec4899 35%, #f59e0b 65%, #10b981 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            -webkit-text-stroke: 3px rgba(0,0,0,0.07);
+            paint-order: stroke fill;
+            filter: drop-shadow(3px 4px 6px rgba(0,0,0,0.10));
+            position: relative;
+        }
+
+        .home-subtitle {
+            font-size: 1em;
+            color: #888;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-align: center;
+            animation: fadeSlideUp 0.7s 0.3s both;
+        }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ---------- Mode Buttons ---------- */
+        .mode-btn {
+            width: 94%;
+            max-width: 440px;
+            padding: 18px 22px;
+            font-size: 1.25em;
+            border: none;
+            border-radius: 22px;
+            cursor: pointer;
+            color: #fff;
+            font-weight: 800;
+            text-align: left;
+            line-height: 1.5;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+            transition: transform 0.12s, box-shadow 0.12s;
+            animation: cardFadeIn 0.5s ease both;
+        }
+        .mode-btn:nth-child(3) { animation-delay: 0.15s; }
+        .mode-btn:nth-child(4) { animation-delay: 0.30s; }
+        .mode-btn:nth-child(5) { animation-delay: 0.45s; }
+        @keyframes cardFadeIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .mode-btn:active {
+            transform: scale(0.96) !important;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.13);
+        }
+        .mode-btn .btn-icon {
+            font-size: 1.6em;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .mode-btn .sub {
+            display: block;
+            font-size: 0.58em;
+            font-weight: 700;
+            opacity: 0.93;
+            margin-top: 3px;
+        }
+        .mode-btn .deco {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2.6em;
+            opacity: 0.18;
+        }
+
+        .btn-delay  { background: linear-gradient(135deg, #7c3aed, #a78bfa); }
+        .btn-frame  { background: linear-gradient(135deg, #ec4899, #f472b6); }
+        .btn-compare {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: #064e3b;
+        }
+
+        /* ---------- Credit ---------- */
+        .credit {
+            position: absolute;
+            bottom: 10px;
+            right: 14px;
+            font-size: 0.65em;
+            color: #c0c0c0;
+            letter-spacing: 0.08em;
+            font-style: italic;
+            font-weight: 700;
+        }
+
+        /* ============ Common Toolbar / Controls ============ */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #fff;
+            border-bottom: 2px solid #eff2f7;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .back-btn {
+            background: #f1f3f8;
+            border: none;
+            color: #555;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: 800;
+            transition: background 0.15s;
+        }
+        .back-btn:active { background: #dde2ec; }
+        .toolbar-title {
+            font-size: 1.1em;
+            font-weight: 800;
+            color: #444;
+        }
+
+        .video-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111827;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .video-area video,
+        .video-area canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .controls {
+            padding: 10px 12px;
+            background: #fff;
+            border-top: 2px solid #eff2f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .ctrl-btn {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1.05em;
+            cursor: pointer;
+            font-weight: 800;
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+            transition: transform 0.12s;
+        }
+        .ctrl-btn:active { transform: scale(0.94); }
+        .ctrl-btn.rec   { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .ctrl-btn.blue  { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+        .ctrl-btn.green { background: linear-gradient(135deg, #34d399, #10b981); }
+        .ctrl-btn:disabled { opacity: 0.30; pointer-events: none; }
+
+        .status-label {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.93);
+            color: #444;
+            padding: 6px 20px;
+            border-radius: 22px;
+            font-size: 0.88em;
+            z-index: 10;
+            white-space: nowrap;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+            font-weight: 800;
+        }
+
+        /* ============ Delay Controls ============ */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 520px;
+        }
+        .slider-row label { font-weight: 800; color: #555; white-space: nowrap; }
+        .slider-row input[type="range"] {
+            flex: 1;
+            accent-color: #7c3aed;
+            height: 32px;
+        }
+        .delay-val {
+            min-width: 58px;
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: 900;
+            color: #7c3aed;
+        }
+
+        /* ============ Frame Controls ============ */
+        .frame-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .frame-counter {
+            min-width: 90px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 800;
+            color: #555;
+        }
+
+        /* ============ Compare ============ */
+        .compare-side {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+        .compare-side > div {
+            width: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .compare-side > div:first-child {
+            border-right: 3px solid rgba(255,255,255,0.5);
+        }
+        .compare-side video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .compare-label {
+            position: absolute;
+            top: 6px;
+            left: 8px;
+            background: rgba(255,255,255,0.88);
+            color: #333;
+            padding: 3px 14px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: 800;
+            z-index: 5;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        }
+        .overlay-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .overlay-container > * {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* ============ Recording Pulse ============ */
+        .rec-pulse {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            background: #ef4444;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+            animation: pulse 0.8s ease-in-out infinite alternate;
+        }
+        @keyframes pulse {
+            from { opacity: 1; transform: scale(1); }
+            to   { opacity: 0.4; transform: scale(0.7); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Particle Background Canvas -->
+<canvas id="particle-bg"></canvas>
+
+<!-- ===== HOME ===== -->
+<div id="home" class="screen active">
+    <div class="home-title-wrap">
+        <span class="title-icon">🏃‍♂️</span>
+        <div class="home-title">
+            <ruby>体<rt>たい</rt></ruby><ruby>育<rt>いく</rt></ruby>カメラ
+        </div>
+    </div>
+    <div class="home-subtitle">
+        📹 <ruby>自<rt>じ</rt></ruby><ruby>分<rt>ぶん</rt></ruby>の<ruby>動<rt>うご</rt></ruby>きをチェックしよう！
+    </div>
+
+    <button class="mode-btn btn-delay" onclick="openMode('delay')">
+        <span class="btn-icon">⏱️</span>
+        <ruby>遅<rt>ち</rt></ruby><ruby>延<rt>えん</rt></ruby><ruby>再<rt>さい</rt></ruby><ruby>生<rt>せい</rt></ruby>
+        <span class="sub"><ruby>選<rt>えら</rt></ruby>んだ<ruby>秒<rt>びょう</rt></ruby><ruby>数<rt>すう</rt></ruby>だけ<ruby>遅<rt>おく</rt></ruby>らせて<ruby>再<rt>さい</rt></ruby><ruby>生<rt>せい</rt></ruby>します</span>
+        <span class="deco">⏳</span>
+    </button>
+
+    <button class="mode-btn btn-frame" onclick="openMode('frame')">
+        <span class="btn-icon">🎞️</span>
+        コマ<ruby>送<rt>おく</rt></ruby>り
+        <span class="sub"><ruby>動<rt>うご</rt></ruby>きを1コマずつ<ruby>確<rt>かく</rt></ruby><ruby>認<rt>にん</rt></ruby>できます</span>
+        <span class="deco">📸</span>
+    </button>
+
+    <button class="mode-btn btn-compare" onclick="openMode('compare')">
+        <span class="btn-icon">🔀</span>
+        <ruby>比<rt>ひ</rt></ruby><ruby>較<rt>かく</rt></ruby><ruby>撮<rt>さつ</rt></ruby><ruby>影<rt>えい</rt></ruby>
+        <span class="sub">2つの<ruby>動<rt>どう</rt></ruby><ruby>画<rt>が</rt></ruby>を<ruby>並<rt>なら</rt></ruby>べて<ruby>見<rt>み</rt></ruby><ruby>比<rt>くら</rt></ruby>べよう</span>
+        <span class="deco">🎬</span>
+    </button>
+
+    <span class="credit">Created by Ryotaro Fujiwara</span>
+</div>
+
+<!-- ===== DELAY SCREEN ===== -->
+<div id="delay-screen" class="screen">
+    <div class="toolbar">
+        <button class="back-btn" onclick="goHome()">← もどる</button>
+        <span class="toolbar-title">⏱️ <ruby>遅<rt>ち</rt></ruby><ruby>延<rt>えん</rt></ruby><ruby>再<rt>さい</rt></ruby><ruby>生<rt>せい</rt></ruby></span>
+    </div>
+    <div class="video-area">
+        <video id="delay-src" autoplay playsinline muted style="display:none"></video>
+        <canvas id="delay-canvas"></canvas>
+        <div class="status-label" id="delay-status">カメラ<ruby>起<rt>き</rt></ruby><ruby>動<rt>どう</rt></ruby><ruby>中<rt>ちゅう</rt></ruby>…</div>
+    </div>
+    <div class="controls">
+        <div class="slider-row">
+            <label><ruby>遅<rt>ち</rt></ruby><ruby>延<rt>えん</rt></ruby></label>
+            <input type="range" id="delay-slider" min="0" max="120" value="5" step="1">
+            <span class="delay-val" id="delay-val">5<ruby>秒<rt>びょう</rt></ruby></span>
+        </div>
+    </div>
+</div>
+
+<!-- ===== FRAME SCREEN ===== -->
+<div id="frame-screen" class="screen">
+    <div class="toolbar">
+        <button class="back-btn" onclick="goHome()">← もどる</button>
+        <span class="toolbar-title">🎞️ コマ<ruby>送<rt>おく</rt></ruby>り</span>
+    </div>
+    <div class="video-area">
+        <video id="frame-video" autoplay playsinline muted></video>
+        <canvas id="frame-canvas" style="display:none"></canvas>
+        <div class="status-label" id="frame-status"><ruby>撮<rt>さつ</rt></ruby><ruby>影<rt>えい</rt></ruby>ボタンをおしてね</div>
+    </div>
+    <div class="controls">
+        <button class="ctrl-btn rec" id="frame-rec" onclick="frameToggle()">● <ruby>撮<rt>さつ</rt></ruby><ruby>影<rt>えい</rt></ruby><ruby>開<rt>かい</rt></ruby><ruby>始<rt>し</rt></ruby></button>
+        <div class="frame-nav">
+            <button class="ctrl-btn blue" id="frame-prev" onclick="frameStep(-1)" disabled>◀ <ruby>前<rt>まえ</rt></ruby></button>
+            <span class="frame-counter" id="frame-cnt">— / —</span>
+            <button class="ctrl-btn blue" id="frame-next" onclick="frameStep(1)" disabled><ruby>次<rt>つぎ</rt></ruby> ▶</button>
+        </div>
+        <button class="ctrl-btn green" id="frame-reset" onclick="frameReset()" style="display:none">リセット</button>
+    </div>
+</div>
+
+<!-- ===== COMPARE SCREEN ===== -->
+<div id="compare-screen" class="screen">
+    <div class="toolbar">
+        <button class="back-btn" onclick="goHome()">← もどる</button>
+        <span class="toolbar-title">🔀 <ruby>比<rt>ひ</rt></ruby><ruby>較<rt>かく</rt></ruby><ruby>撮<rt>さつ</rt></ruby><ruby>影<rt>えい</rt></ruby></span>
+    </div>
+    <div class="video-area" id="compare-area"></div>
+    <div class="controls" id="compare-ctrl">
+        <button class="ctrl-btn rec" id="compare-btn" onclick="compareAction()">● 1<ruby>回<rt>かい</rt></ruby><ruby>目<rt>め</rt></ruby>の<ruby>撮<rt>さつ</rt></ruby><ruby>影<rt>えい</rt></ruby></button>
+        <button class="ctrl-btn green" id="compare-reset" onclick="compareRestart()" style="display:none">やりなおす</button>
+    </div>
+</div>
+
+<script>
+/* =================================================================
+   パーティクル・アニメーション
+   ================================================================= */
+(function () {
+    const cvs = document.getElementById('particle-bg');
+    const ctx = cvs.getContext('2d');
+    let W, H, particles = [];
+
+    const COLORS = [
+        '#a78bfa','#f9a8d4','#6ee7b7','#fbbf24','#93c5fd',
+        '#c4b5fd','#fda4af','#86efac','#fdba74','#67e8f9',
+        '#f0abfc','#bef264'
+    ];
+    const SHAPES = ['circle','star','heart','diamond','ring'];
+
+    function resize() {
+        W = cvs.width = window.innerWidth;
+        H = cvs.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function create(randomY) {
+        const size = 8 + Math.random() * 18;
+        return {
+            x: Math.random() * W,
+            y: randomY ? Math.random() * H : H + size + Math.random() * 40,
+            size,
+            speed: 0.2 + Math.random() * 0.6,
+            drift: (Math.random() - 0.5) * 0.3,
+            wobbleAmp: 0.5 + Math.random() * 1.5,
+            wobbleFreq: 0.01 + Math.random() * 0.02,
+            wobbleOff: Math.random() * 1000,
+            rot: Math.random() * Math.PI * 2,
+            rotSpd: (Math.random() - 0.5) * 0.015,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+            shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
+            alpha: 0.18 + Math.random() * 0.22,
+        };
+    }
+
+    for (let i = 0; i < 40; i++) particles.push(create(true));
+
+    function drawStar(r) {
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            const a = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+            ctx[i ? 'lineTo' : 'moveTo'](r * Math.cos(a), r * Math.sin(a));
+        }
+        ctx.closePath(); ctx.fill();
+    }
+
+    function drawHeart(r) {
+        ctx.beginPath();
+        ctx.moveTo(0, r * 0.3);
+        ctx.bezierCurveTo(-r, -r * 0.3, -r * 0.4, -r, 0, -r * 0.4);
+        ctx.bezierCurveTo(r * 0.4, -r, r, -r * 0.3, 0, r * 0.3);
+        ctx.fill();
+    }
+
+    function drawRing(r) {
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.lineWidth = r * 0.35;
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.globalAlpha *= 0.7;
+        ctx.stroke();
+    }
+
+    let tick = 0;
+    function frame() {
+        tick++;
+        ctx.clearRect(0, 0, W, H);
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.y -= p.speed;
+            p.x += p.drift + Math.sin((tick + p.wobbleOff) * p.wobbleFreq) * p.wobbleAmp;
+            p.rot += p.rotSpd;
+
+            if (p.y < -p.size * 2) { particles.splice(i, 1); continue; }
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.color;
+            const s = p.size / 2;
+
+            switch (p.shape) {
+                case 'circle':
+                    ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI * 2); ctx.fill();
+                    break;
+                case 'star':
+                    drawStar(s);
+                    break;
+                case 'heart':
+                    drawHeart(s);
+                    break;
+                case 'diamond':
+                    ctx.beginPath();
+                    ctx.moveTo(0, -s); ctx.lineTo(s, 0); ctx.lineTo(0, s); ctx.lineTo(-s, 0);
+                    ctx.closePath(); ctx.fill();
+                    break;
+                case 'ring':
+                    drawRing(s);
+                    break;
+            }
+            ctx.restore();
+        }
+
+        if (particles.length < 45 && Math.random() < 0.06) particles.push(create(false));
+        requestAnimationFrame(frame);
+    }
+    frame();
+})();
+
+/* =================================================================
+   共通ユーティリティ
+   ================================================================= */
+let stream = null;
+
+function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+async function startCamera() {
+    stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+    });
+    return stream;
+}
+
+function stopCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+
+function openMode(mode) {
+    if (mode === 'delay')   initDelay();
+    else if (mode === 'frame')   initFrame();
+    else if (mode === 'compare') initCompare();
+}
+
+function goHome() {
+    stopCamera();
+    cleanupDelay();
+    cleanupFrame();
+    cleanupCompare();
+    show('home');
+}
+
+/* =================================================================
+   1. 遅延再生
+   ================================================================= */
+let dFrames = [], dRunning = false, dTimer = null;
+const D_FPS = 8;
+const D_W = 360, D_H = 203;          // 16:9 バッファサイズ
+let dCapCvs, dCapCtx, dDispCvs, dDispCtx;
+
+function initDelay() {
+    show('delay-screen');
+    const status = document.getElementById('delay-status');
+    status.textContent = 'カメラ起動中…';
+
+    dDispCvs = document.getElementById('delay-canvas');
+    dDispCtx = dDispCvs.getContext('2d');
+    dCapCvs  = document.createElement('canvas');
+    dCapCvs.width = D_W; dCapCvs.height = D_H;
+    dCapCtx  = dCapCvs.getContext('2d');
+
+    const slider = document.getElementById('delay-slider');
+    const label  = document.getElementById('delay-val');
+    slider.oninput = () => { label.textContent = slider.value + '秒'; };
+
+    startCamera().then(s => {
+        const v = document.getElementById('delay-src');
+        v.srcObject = s;
+        v.onloadedmetadata = () => {
+            dDispCvs.width  = v.videoWidth;
+            dDispCvs.height = v.videoHeight;
+            status.textContent = '';
+            dFrames = [];
+            dRunning = true;
+            delayTick(v);
+        };
+    }).catch(e => { status.textContent = 'カメラエラー: ' + e.message; });
+}
+
+function delayTick(video) {
+    if (!dRunning) return;
+
+    dCapCtx.drawImage(video, 0, 0, D_W, D_H);
+    const img = dCapCtx.getImageData(0, 0, D_W, D_H);
+    dFrames.push({ d: img, t: performance.now() });
+
+    const delaySec = parseInt(document.getElementById('delay-slider').value);
+    const delayMs  = delaySec * 1000;
+
+    // 古いフレームを捨てる (遅延 + 2 秒バッファ)
+    const keepMs = delayMs + 2000;
+    const now = performance.now();
+    while (dFrames.length > 1 && now - dFrames[0].t > keepMs) dFrames.shift();
+
+    if (delaySec === 0) {
+        dDispCtx.drawImage(video, 0, 0, dDispCvs.width, dDispCvs.height);
+    } else {
+        const target = now - delayMs;
+        let f = null;
+        for (let i = dFrames.length - 1; i >= 0; i--) {
+            if (dFrames[i].t <= target) { f = dFrames[i]; break; }
+        }
+        if (f) {
+            dCapCtx.putImageData(f.d, 0, 0);
+            dDispCtx.drawImage(dCapCvs, 0, 0, dDispCvs.width, dDispCvs.height);
+        } else {
+            dDispCtx.fillStyle = '#1e1e2e';
+            dDispCtx.fillRect(0, 0, dDispCvs.width, dDispCvs.height);
+            dDispCtx.fillStyle = '#fff';
+            dDispCtx.font = 'bold 22px "M PLUS Rounded 1c", sans-serif';
+            dDispCtx.textAlign = 'center';
+            dDispCtx.fillText('バッファちゅう… すこしおまちください 🎥',
+                              dDispCvs.width / 2, dDispCvs.height / 2);
+        }
+    }
+    dTimer = setTimeout(() => delayTick(video), 1000 / D_FPS);
+}
+
+function cleanupDelay() {
+    dRunning = false;
+    if (dTimer) { clearTimeout(dTimer); dTimer = null; }
+    dFrames = [];
+}
+
+/* =================================================================
+   2. コマ送り
+   ================================================================= */
+let fFrames = [], fRecording = false, fTimer = null, fIdx = 0;
+const F_INTERVAL = 200;   // 0.2 秒間隔
+
+function initFrame() {
+    show('frame-screen');
+    fFrames = []; fIdx = 0; fRecording = false;
+
+    document.getElementById('frame-video').style.display = '';
+    document.getElementById('frame-canvas').style.display = 'none';
+    document.getElementById('frame-status').textContent  = '撮影ボタンをおしてね';
+    document.getElementById('frame-rec').textContent     = '● 撮影かいし';
+    document.getElementById('frame-rec').disabled        = false;
+    document.getElementById('frame-prev').disabled       = true;
+    document.getElementById('frame-next').disabled       = true;
+    document.getElementById('frame-cnt').textContent     = '— / —';
+    document.getElementById('frame-reset').style.display = 'none';
+
+    startCamera().then(s => {
+        const v = document.getElementById('frame-video');
+        v.srcObject = s;
+    }).catch(e => {
+        document.getElementById('frame-status').textContent = 'カメラエラー: ' + e.message;
+    });
+}
+
+function frameToggle() {
+    if (!fRecording) {
+        fRecording = true;
+        fFrames = [];
+        document.getElementById('frame-rec').innerHTML    = '<span class="rec-pulse"></span> ストップ';
+        document.getElementById('frame-status').innerHTML = '<span class="rec-pulse"></span> 撮影中…';
+        frameCap(document.getElementById('frame-video'));
+    } else {
+        fRecording = false;
+        if (fTimer) clearTimeout(fTimer);
+        document.getElementById('frame-rec').disabled    = true;
+        document.getElementById('frame-rec').textContent = '撮影ずみ ✅';
+        document.getElementById('frame-reset').style.display = '';
+
+        if (fFrames.length > 0) {
+            document.getElementById('frame-video').style.display  = 'none';
+            document.getElementById('frame-canvas').style.display = '';
+            fIdx = 0;
+            showFrameAt(0);
+            document.getElementById('frame-prev').disabled = false;
+            document.getElementById('frame-next').disabled = false;
+            document.getElementById('frame-status').textContent = '◀ ▶ でコマ送りしよう！';
+        }
+    }
+}
+
+function frameCap(video) {
+    if (!fRecording) return;
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth;
+    c.height = video.videoHeight;
+    c.getContext('2d').drawImage(video, 0, 0);
+    fFrames.push(c);
+    document.getElementById('frame-cnt').textContent = fFrames.length + ' コマ';
+    fTimer = setTimeout(() => frameCap(video), F_INTERVAL);
+}
+
+function showFrameAt(i) {
+    if (i < 0 || i >= fFrames.length) return;
+    fIdx = i;
+    const disp = document.getElementById('frame-canvas');
+    const src  = fFrames[i];
+    disp.width = src.width;
+    disp.height = src.height;
+    disp.getContext('2d').drawImage(src, 0, 0);
+    document.getElementById('frame-cnt').textContent = (i + 1) + ' / ' + fFrames.length;
+    document.getElementById('frame-prev').disabled = (i === 0);
+    document.getElementById('frame-next').disabled = (i === fFrames.length - 1);
+}
+
+function frameStep(dir) { showFrameAt(fIdx + dir); }
+function frameReset() { cleanupFrame(); initFrame(); }
+
+function cleanupFrame() {
+    fRecording = false;
+    if (fTimer) { clearTimeout(fTimer); fTimer = null; }
+    fFrames = [];
+}
+
+/* =================================================================
+   3. 比較撮影
+   ================================================================= */
+let cState = 'idle', cRec = null, cChunks = [];
+let cBlob1 = null, cBlob2 = null, cFrame1 = null;
+
+function initCompare() {
+    show('compare-screen');
+    cState = 'idle';
+    cBlob1 = cBlob2 = cFrame1 = null;
+
+    const area = document.getElementById('compare-area');
+    area.innerHTML = '<div class="status-label" id="compare-status">カメラ起動中…</div>';
+
+    const btn = document.getElementById('compare-btn');
+    btn.textContent = '● 1回目のさつえい';
+    btn.disabled = false;
+    btn.style.display = '';
+    btn.onclick = compareAction;
+    document.getElementById('compare-reset').style.display = 'none';
+
+    startCamera().then(s => {
+        const v = document.createElement('video');
+        v.id = 'compare-live';
+        v.autoplay = true; v.playsInline = true; v.muted = true;
+        v.srcObject = s;
+        v.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+
+        area.innerHTML = '';
+        area.appendChild(v);
+        const st = document.createElement('div');
+        st.className = 'status-label'; st.id = 'compare-status';
+        st.textContent = '1回目のさつえいボタンをおしてね';
+        area.appendChild(st);
+    }).catch(e => {
+        document.getElementById('compare-status').textContent = 'カメラエラー: ' + e.message;
+    });
+}
+
+function bestMime() {
+    for (const t of ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4']) {
+        if (MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return '';
+}
+
+function recStart() {
+    cChunks = [];
+    cRec = new MediaRecorder(stream, { mimeType: bestMime() });
+    cRec.ondataavailable = e => { if (e.data.size) cChunks.push(e.data); };
+    cRec.start(100);
+}
+
+function recStop() {
+    return new Promise(resolve => {
+        cRec.onstop = () => resolve(new Blob(cChunks, { type: cRec.mimeType }));
+        cRec.stop();
+    });
+}
+
+async function compareAction() {
+    const btn    = document.getElementById('compare-btn');
+    const status = document.getElementById('compare-status');
+
+    switch (cState) {
+    case 'idle':
+        recStart();
+        cState = 'rec1';
+        btn.innerHTML = '<span class="rec-pulse"></span> ストップ';
+        status.innerHTML = '<span class="rec-pulse"></span> 1回目さつえい中…';
+        break;
+
+    case 'rec1':
+        btn.disabled = true;
+        btn.textContent = 'しょり中…';
+        status.textContent = 'しょり中… ⏳';
+        cBlob1  = await recStop();
+        cFrame1 = await extractFirstFrame(cBlob1);
+        setupSecondRec();
+        break;
+
+    case 'ready2':
+        recStart();
+        cState = 'rec2';
+        btn.innerHTML = '<span class="rec-pulse"></span> ストップ';
+        status.innerHTML = '<span class="rec-pulse"></span> 2回目さつえい中…';
+        break;
+
+    case 'rec2':
+        btn.disabled = true;
+        status.textContent = 'しょり中… ⏳';
+        cBlob2 = await recStop();
+        showCompareResult();
+        break;
+    }
+}
+
+function extractFirstFrame(blob) {
+    return new Promise(resolve => {
+        const v = document.createElement('video');
+        v.muted = true; v.playsInline = true; v.preload = 'auto';
+        const url = URL.createObjectURL(blob);
+        v.src = url;
+        v.onloadeddata = () => { v.currentTime = 0.01; };
+        v.onseeked = () => {
+            const c = document.createElement('canvas');
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            c.getContext('2d').drawImage(v, 0, 0);
+            URL.revokeObjectURL(url);
+            resolve(c);
+        };
+    });
+}
+
+function setupSecondRec() {
+    const area = document.getElementById('compare-area');
+    area.innerHTML = '';
+
+    const container = document.createElement('div');
+    container.className = 'overlay-container';
+
+    const v = document.createElement('video');
+    v.id = 'compare-live';
+    v.autoplay = true; v.playsInline = true; v.muted = true;
+    v.srcObject = stream;
+    v.style.zIndex = '1';
+    container.appendChild(v);
+
+    if (cFrame1) {
+        const overlay = document.createElement('canvas');
+        overlay.width = cFrame1.width;
+        overlay.height = cFrame1.height;
+        overlay.getContext('2d').drawImage(cFrame1, 0, 0);
+        overlay.style.opacity = '0.35';
+        overlay.style.zIndex = '2';
+        overlay.style.pointerEvents = 'none';
+        container.appendChild(overlay);
+    }
+
+    area.appendChild(container);
+    const st = document.createElement('div');
+    st.className = 'status-label'; st.id = 'compare-status';
+    st.textContent = '1回目のえいぞうがかさなっています — 2回目をさつえいしてね';
+    area.appendChild(st);
+
+    cState = 'ready2';
+    const btn = document.getElementById('compare-btn');
+    btn.textContent = '● 2回目のさつえい';
+    btn.disabled = false;
+}
+
+function showCompareResult() {
+    stopCamera();
+
+    const area = document.getElementById('compare-area');
+    area.innerHTML = '';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'compare-side';
+
+    const url1 = URL.createObjectURL(cBlob1);
+    const url2 = URL.createObjectURL(cBlob2);
+
+    const d1 = document.createElement('div');
+    const l1 = document.createElement('div'); l1.className = 'compare-label'; l1.textContent = '1回目';
+    const v1 = document.createElement('video');
+    v1.src = url1; v1.controls = true; v1.playsInline = true; v1.preload = 'auto';
+    d1.appendChild(l1); d1.appendChild(v1);
+
+    const d2 = document.createElement('div');
+    const l2 = document.createElement('div'); l2.className = 'compare-label'; l2.textContent = '2回目';
+    const v2 = document.createElement('video');
+    v2.src = url2; v2.controls = true; v2.playsInline = true; v2.preload = 'auto';
+    d2.appendChild(l2); d2.appendChild(v2);
+
+    wrap.appendChild(d1);
+    wrap.appendChild(d2);
+    area.appendChild(wrap);
+
+    const st = document.createElement('div');
+    st.className = 'status-label'; st.id = 'compare-status';
+    st.textContent = '2つのどうがをみくらべよう！🎉';
+    area.appendChild(st);
+
+    cState = 'done';
+    const btn = document.getElementById('compare-btn');
+    btn.textContent = '▶ どうじにさいせい';
+    btn.disabled = false;
+    btn.style.display = '';
+    btn.classList.remove('rec');
+    btn.classList.add('green');
+    btn.onclick = () => {
+        v1.currentTime = 0; v2.currentTime = 0;
+        v1.play(); v2.play();
+    };
+    document.getElementById('compare-reset').style.display = '';
+}
+
+function compareRestart() { cleanupCompare(); initCompare(); }
+
+function cleanupCompare() {
+    if (cRec && cRec.state !== 'inactive') cRec.stop();
+    cRec = null; cChunks = [];
+    cBlob1 = cBlob2 = cFrame1 = null; cState = 'idle';
+    const btn = document.getElementById('compare-btn');
+    btn.onclick = compareAction;
+    btn.disabled = false;
+    btn.classList.remove('green');
+    btn.classList.add('rec');
+}
+</script>
+</body>
+</html>
